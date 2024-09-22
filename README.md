@@ -17,7 +17,11 @@ El repositorio está compuesto por los siguientes archivos:
 
 -----------------------------------------------------------------------------------------------------------------
 La idea es que mediante el main.cpp se creen los archivos e índices necesarios para cada método de organización, para que mediante una interfaz en python se pueda seleccionar una técnica para hacer las consultas y así trabajar con sus archivos asociados. Para hacer las consultas se dispondrá de un parser que ejecutará las funciones correspondientes a las consultas SQL.
+
 TODO:
+
 -archivos asociados a cada método de organización
+
 -archivo de python con el parser
+
 -archivo de python con la interfaz
