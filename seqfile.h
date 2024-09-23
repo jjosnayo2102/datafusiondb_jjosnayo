@@ -9,8 +9,8 @@ struct Anime {
     char nombre[100]; // nombre original
     float puntaje; // del 0 al 10
     char genero[50]; // a qué tipos de tramas pertenece
-    float temporada; //estación y año en el que salió (año.(1,2,3,4) 1:verano, 2:otoño, 3:invierno, 4:primavera)
     char tipo[10]; // serie, película o especial
+    float temporada; //estación y año en el que salió (año.(1,2,3,4) 1:verano, 2:otoño, 3:invierno, 4:primavera)
     char estado[20]; // si ha terminado, está en emisión o aún no se emite
     char estudio[30]; // empresa que la desarrolló
     int next = -1; // para el archivo secuencial
@@ -21,8 +21,8 @@ struct Anime {
         cout << nombre << endl;
         cout << puntaje << endl;
         cout << genero << endl;
-        cout << temporada << endl;
         cout << tipo << endl;
+        cout << temporada << endl;
         cout << estado << endl;
         cout << estudio << endl;
     }
@@ -171,8 +171,8 @@ private:
         int fin = ord_size-1;
         int m = -1; // si el inicio no es menor al final devuelve -1
         ifstream file(filename, ios::binary);
-        while(inicio < fin){
-            m = (fin - inicio)/2;
+        while(inicio <= fin){
+            m = inicio + (fin - inicio)/2;
             file.seekg(sizeof(Anime)*m, ios::beg);
             Anime reg;
             file.read((char*) &reg, sizeof(Anime));
@@ -229,6 +229,10 @@ public:
                     file.seekg(0, ios::end);
                     file.write((char*) &registro, sizeof(registro));
                     file.close();
+                    tam += 1;
+                    if((tam - ord_size) >= limite){
+                        reconstruir();
+                    }
                     return true;
                 }else{ // si el header no es 0 significa que una inserción ya modificó el orden
                     Anime anime;
@@ -249,15 +253,19 @@ public:
                     file.seekg(0, ios::end);
                     long p = file.tellg();
                     int ntam = p/sizeof(Anime);
-                    // reemplazar puntero actual por nuevo
-                    panime.next = ntam;
-                    file.seekg(sizeof(Anime)*pos, ios::beg);
-                    file.write((char*) &panime, sizeof(panime));
                     // modificar puntero del nuevo por el siguiente de la posición comparada
                     registro.next = panime.next;
                     file.seekg(0, ios::end);
                     file.write((char*) &registro, sizeof(registro));
+                    // reemplazar puntero actual por nuevo
+                    panime.next = ntam;
+                    file.seekg(sizeof(Anime)*pos, ios::beg);
+                    file.write((char*) &panime, sizeof(panime));
                     file.close();
+                    tam += 1;
+                    if((tam - ord_size) >= limite){
+                        reconstruir();
+                    }
                     return true;
                 }
             }
@@ -268,15 +276,19 @@ public:
                     file.seekg(0, ios::end);
                     long p = file.tellg();
                     int ntam = p/sizeof(Anime);
-                    // reemplazar puntero actual por nuevo
-                    anime.next = ntam;
-                    file.seekg(sizeof(Anime)*pos, ios::beg);
-                    file.write((char*) &anime, sizeof(anime));
                     // modificar puntero del nuevo por el siguiente de la posición comparada
                     registro.next = anime.next;
                     file.seekg(0, ios::end);
                     file.write((char*) &registro, sizeof(registro));
+                    // reemplazar puntero actual por nuevo
+                    anime.next = ntam;
+                    file.seekg(sizeof(Anime)*pos, ios::beg);
+                    file.write((char*) &anime, sizeof(anime));
                     file.close();
+                    tam += 1;
+                    if((tam - ord_size) >= limite){
+                        reconstruir();
+                    }
                     return true;
                 }else{ // si apunta a auxiliar
                     Anime nanime;
@@ -289,17 +301,22 @@ public:
                             file.seekg(0, ios::end);
                             long p = file.tellg();
                             int ntam = p/sizeof(Anime);
-                            // reemplazar puntero actual por nuevo
-                            nanime.next = ntam;
-                            file.seekg(sizeof(Anime)*pos, ios::beg);
-                            file.write((char*) &nanime, sizeof(nanime));
                             // modificar puntero del nuevo por el siguiente de la posición comparada
                             registro.next = nanime.next;
                             file.seekg(0, ios::end);
                             file.write((char*) &registro, sizeof(registro));
+                            // reemplazar puntero actual por nuevo
+                            nanime.next = ntam;
+                            file.seekg(sizeof(Anime)*anime.next, ios::beg);
+                            file.write((char*) &nanime, sizeof(nanime));
                             file.close();
+                            tam += 1;
+                            if((tam - ord_size) >= limite){
+                                reconstruir();
+                            }
                             return true;
                         }
+                        pos = anime.next; 
                         anime = nanime;
                         file.seekg(sizeof(Anime)*nanime.next, ios::beg);
                         file.read((char*) &nanime, sizeof(nanime));
@@ -313,15 +330,19 @@ public:
                     file.seekg(0, ios::end);
                     long p = file.tellg();
                     int ntam = p/sizeof(Anime);
-                    // reemplazar puntero actual por nuevo
-                    anime.next = ntam;
-                    file.seekg(sizeof(Anime)*pos, ios::beg);
-                    file.write((char*) &anime, sizeof(anime));
                     // modificar puntero del nuevo por el siguiente de la posición comparada
                     registro.next = anime.next;
                     file.seekg(0, ios::end);
                     file.write((char*) &registro, sizeof(registro));
+                    // reemplazar puntero actual por nuevo
+                    anime.next = ntam;
+                    file.seekg(sizeof(Anime)*pos, ios::beg);
+                    file.write((char*) &anime, sizeof(anime));
                     file.close();
+                    tam += 1;
+                    if((tam - ord_size) >= limite){
+                        reconstruir();
+                    }
                     return true;
                 }
             }
