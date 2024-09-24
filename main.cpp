@@ -10,7 +10,9 @@ void leerCSV_Seqfile(const string& filename) {
     cerr << "No se pudo abrir el archivo.\n";
   }
   getline(file, line); // primero lee los nombres de los atributos
-  while (getline(file, line)) {
+  int i = 0;
+  while (i < 7) {
+    getline(file, line);
     stringstream ss(line);
     string token;
     Anime record;
@@ -52,6 +54,7 @@ void leerCSV_Seqfile(const string& filename) {
       strncpy(record.estudio, "", sizeof(record.estudio));
     }
     sf->insertar(record);
+    i++;
   }
   file.close();
   delete sf;
@@ -60,9 +63,15 @@ void leerCSV_Seqfile(const string& filename) {
 int main() {
     string nombreArchivo = "datos.csv";
     leerCSV_Seqfile(nombreArchivo);
-    auto sf1 = new Seqfile<int>("archivo_secuencial");
-    Anime res = sf1->buscar(984); // puede no estar, he metido random
-    res.show();
-    delete sf1;
+    //auto sf1 = new Seqfile<int>("archivo_secuencial");
+    //Anime res = sf1->buscar(984); // puede no estar, he metido random
+    //res.show();
+    //delete sf1;
+    ifstream file("archivo_secuencial.bin", ios::binary);
+    Anime registro;
+    while(file.read((char*) &registro, sizeof(Anime))){
+      cout << registro.id << endl;
+      cout << registro.next << endl;
+    }
     return 0;
 }
