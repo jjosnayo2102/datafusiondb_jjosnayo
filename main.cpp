@@ -1,77 +1,45 @@
-#include "seqfile.h"
-#include <sstream>
-#include <cstring>
-
-void leerCSV_Seqfile(const string& filename) {
-  Seqfile<int>* sf= new Seqfile<int>("archivo_secuencial");
-  ifstream file(filename);
-  string line;
-  if (!file.is_open()) {
-    cerr << "No se pudo abrir el archivo.\n";
-  }
-  getline(file, line); // primero lee los nombres de los atributos
-  int i = 0;
-  while (i < 7) {
-    getline(file, line);
-    stringstream ss(line);
-    string token;
-    Anime record;
-    getline(ss, token, '|');
-    record.id = stoi(token);
-    getline(ss, token, '|');
-    strncpy(record.nombre, token.c_str(), sizeof(record.nombre));
-    record.nombre[sizeof(record.nombre) - 1] = '\0';  // Asegurar el null-termination
-    getline(ss, token, '|');
-    if(token != "UNKNOWN"){
-      record.puntaje = stof(token);
-    }else{
-      record.puntaje = -1;
-    }
-    getline(ss, token, '|');
-    if(token != "UNKNOWN"){
-      strncpy(record.genero, token.c_str(), sizeof(record.genero));
-      record.genero[sizeof(record.genero) - 1] = '\0';  // Asegurar el null-termination
-    }else{
-      strncpy(record.genero, "", sizeof(record.genero));
-    }
-    getline(ss, token, '|');
-    strncpy(record.tipo, token.c_str(), sizeof(record.tipo));
-    record.tipo[sizeof(record.tipo) - 1] = '\0';  // Asegurar el null-termination
-    getline(ss, token, '|');
-    if(!token.empty()){
-      record.temporada = stof(token);
-    }else{
-      record.temporada = -1;
-    }
-    getline(ss, token, '|');
-    strncpy(record.estado, token.c_str(), sizeof(record.estado));
-    record.estado[sizeof(record.estado) - 1] = '\0';  // Asegurar el null-termination
-    getline(ss, token, '|');
-    if(token != "UNKNOWN"){
-      strncpy(record.estudio, token.c_str(), sizeof(record.estudio));
-      record.estudio[sizeof(record.estudio) - 1] = '\0';  // Asegurar el null-termination
-    }else{
-      strncpy(record.estudio, "", sizeof(record.estudio));
-    }
-    sf->insertar(record);
-    i++;
-  }
-  file.close();
-  delete sf;
-}
+#include "inicializacion.h"
 
 int main() {
     string nombreArchivo = "datos.csv";
-    leerCSV_Seqfile(nombreArchivo);
-    //auto sf1 = new Seqfile<int>("archivo_secuencial");
-    //Anime res = sf1->buscar(984); // puede no estar, he metido random
-    //res.show();
-    //delete sf1;
-    ifstream file("archivo_secuencial.bin", ios::binary);
-    Anime registro;
-    while(file.read((char*) &registro, sizeof(Anime))){
-      cout << registro.id << endl;
-      cout << registro.next << endl;
+    cout << "Este es datafusionDB: Una base de datos con técnicas combinadas" << endl;
+    cout << "------------------------------------------------------------------" << endl;
+    cout << "Esta base de datos maneja información de animes: Tiene creada la tabla 'Anime'" << endl;
+    cout << endl;
+    cout << "Puedes consultar los siguientes atributos: " << endl;
+    cout << "id, nombre, puntaje, genero, tipo, temporada, estado y estudio" << endl;
+    cout << "id es la clave identificadora del anime" << endl;
+    cout << "nombre es el nombre original del anime" << endl;
+    cout << "puntaje es la nota del 1 al 10 que indica su calidad, es un int" << endl;
+    cout << "genero es el tipo de trama del anime, es un string" << endl;
+    cout << "tipo es el formato del anime: serie, película, etc; es un string" << endl;
+    cout << "temporada es la fecha de estreno del anime codificado como año.estación_del_año, es un float" << endl;
+    cout << "estado indica si el anime está en emisión, finalizado o aún no ha sido emitido, es un string" << endl;
+    cout << "estudio es la empresa que emitió el anime, es un string" << endl;
+    cout << "------------------------------------------------------------------" << endl;
+    cout << "Ingrese 1 si desea indexar de forma secuencial" << endl;
+    cout << "Ingrese 2 si desea indexar a través de un árbol AVL" << endl;
+    cout << "Ingrese 3 si desdea indexar por extendible hashing" << endl;
+    int opcion;
+    while(cin >> opcion){
+        switch(opcion){
+        case 1: cout << "procesando..." << endl; leerCSV_Seqfile(nombreArchivo); break;
+        case 2: cout << "procesando..." << endl; leerCSV_AVL(nombreArchivo); break;
+        case 3: cout << "procesando..." << endl; leerCSV_ExtHash(nombreArchivo); break;
+        default: cout << "Ingrese un número válido" << endl;
+        }
     }
+    cout << "------------------------------------------------------------------" << endl;
+    cout << "Bienvenido" << endl;
+    cout << "Ingrese sus consultas" << endl;
+    cout << "Si quiere terminar escriba 'termine'" << endl;
+    string consulta;
+    cin >> consulta;
+    while(consulta != "termine"){
+        cout << "Consulta ejecutada" << endl;
+        // hacer el parser aquí
+        cin >> consulta;
+    }
+    cout << "Sesión finalizada" << endl;
     return 0;
 }

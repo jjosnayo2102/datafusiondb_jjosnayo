@@ -2,8 +2,10 @@
 #include <fstream>
 #include <vector>
 #include <cmath>
+#include <cstring>
 using namespace std;
 
+// en este caso la llave es int, en la creación de la tabla se describen los tipos y nombres para crear la clase registro
 struct Anime {
   int id; // llave primaria
   char nombre[100]; // nombre original
@@ -14,8 +16,19 @@ struct Anime {
   char estado[20]; // si ha terminado, está en emisión o aún no se emite
   char estudio[30]; // empresa que la desarrolló
   int next = -1; // para el archivo secuencial
+  bool eliminado = false; // para el archivo secuencial
   int left = -1; // para el AVL
   int right = -1; // para el AVL
+  Anime(){
+    id = -1;
+    strcpy(nombre, "UNKNOWN");
+    puntaje = -1;
+    strcpy(genero, "UNKNOWN");
+    strcpy(tipo, "UNKNOWN");
+    temporada = -1;
+    strcpy(estado, "UNKNOWN");
+    strcpy(estudio, "UNKNOWN");
+  }
   void show() {
     cout << id << endl;
     cout << nombre << endl;
@@ -25,11 +38,12 @@ struct Anime {
     cout << temporada << endl;
     cout << estado << endl;
     cout << estudio << endl;
-    cout << next << endl;
+    cout << next << endl; // para las pruebas
+    cout << eliminado << endl; // para las pruebas
   }
 };
 
-template < typename TK >
+template<typename TK> // para indexar cualquier tipo de llave
   class Seqfile {
     private: string filename;
     string aux_file;
@@ -46,28 +60,37 @@ template < typename TK >
       file.read((char * ) & registro, sizeof(registro));
       int i = 1;
       header = 0; // archivo ordenado
+      int siguiente_pos = header;
       while (registro.next != -1) {
         // buscar siguiente posición antes de modificar el puntero next
-        int siguiente_pos = registro.next;
-        // actualizar el puntero next y escribir el registro
-        registro.next = i;
-        archivo.write((char*) &registro, sizeof(registro));
+        siguiente_pos = registro.next;
+        if(!registro.eliminado){ // si no está eliminado
+          // actualizar el puntero next y escribir el registro
+          registro.next = i;
+          archivo.write((char*) &registro, sizeof(registro));
+          i++;
+        }
         // leer el siguiente registro desde la posición correcta
         file.seekg(sizeof(Anime)*siguiente_pos, ios::beg);
         file.read((char*) &registro, sizeof(registro));
-        i++;
       }
       // último registro (next == -1)
-      archivo.write((char*) &registro, sizeof(registro));
+      if(!registro.eliminado){
+        archivo.write((char*) &registro, sizeof(registro));
+      }
       file.close();
       archivo.close();
       // eliminar viejo
       remove("delete.bin");
       ord_size = tam;
-      limite = max(5, static_cast<int> (log2(tam)));
+      if(tam != 0){
+        limite = max(5, static_cast<int> (log2(tam)));
+      }else{ // para la eliminación
+        limite = 5; 
+      }
     }
 
-    bool insertar_aux(Anime registro) {
+    bool insertar_aux(Anime registro) { //tomar en cuenta los eliminados: -2
       if (tam == 0) {
         // El archivo no tiene registros aún
         ofstream file(filename, ios::binary);
@@ -168,7 +191,82 @@ template < typename TK >
       return true;
     }
 
-    int buscar_posicion(int key) {
+    Anime buscar_aux(TK key){
+      Anime defa;
+      ifstream file(filename, ios::binary);
+      file.seekg(sizeof(Anime)*header, ios::beg);
+      Anime anime;
+      file.read((char*) &anime, sizeof(anime));
+      while(anime.next != -1  && !anime.eliminado){
+        if(anime.id == key){
+          file.close();
+          return anime;
+        }
+        file.seekg(sizeof(Anime)*anime.next, ios::beg);
+        file.read((char*) &anime, sizeof(anime));
+      }
+      if(anime.id == key && !anime.eliminado){
+        file.close();
+        return anime;
+      }
+      file.close();
+      return defa;
+    }
+
+    vector<Anime> buscar_por_rango_aux(TK key1, TK key2){
+      vector<Anime> animes;
+      ifstream file(filename, ios::binary);
+      file.seekg(sizeof(Anime)*header, ios::beg);
+      Anime anime;
+      file.read((char*) &anime, sizeof(anime));
+      while(anime.next != -1){
+        if((key1 <= anime.id) && (anime.id <= key2)){
+          animes.push_back(anime);
+        }
+        file.seekg(sizeof(Anime)*anime.next, ios::beg);
+        file.read((char*) &anime, sizeof(anime));
+      }
+      if((key1 <= anime.id) && (anime.id <= key2)){
+        animes.push_back(anime);
+      }
+      return animes;
+    }
+
+    bool remover_aux(TK key){
+      fstream file(filename, ios::in | ios::out | ios::binary);
+      file.seekg(sizeof(Anime)*header, ios::beg);
+      Anime anime;
+      file.read((char*) &anime, sizeof(anime));
+      int pos = header;
+      while(anime.next != -1  && !anime.eliminado){
+        if(anime.id == key){
+          anime.eliminado = true;
+          file.seekg(sizeof(Anime)*pos, ios::beg);
+          file.write((char*) &anime, sizeof(anime));
+          file.close();
+          tam--;
+          if(tam == 0){
+            reconstruir();
+          }
+          return true;
+        }
+        pos = anime.next;
+        file.seekg(sizeof(Anime)*anime.next, ios::beg);
+        file.read((char*) &anime, sizeof(anime));
+      }
+      if(anime.id == key && !anime.eliminado){
+        file.close();
+        tam--;
+        if(tam == 0){
+          reconstruir();
+        }
+        return true;
+      }
+      file.close();
+      return false;
+    }
+
+    int buscar_posicion(TK key) {
       int inicio = 0;
       int fin = ord_size - 1;
       int m = -1; // Si no se encuentra nada, devuelve -1
@@ -208,7 +306,7 @@ public:
       archivo.close();
     }
 
-    bool insertar(Anime registro){
+    bool insertar(Anime registro){ //tomar en cuenta los eliminados: -2
       if(ord_size > 0){
         int pos = buscar_posicion(registro.id);
         Anime anime;
@@ -333,28 +431,55 @@ public:
     }
 
     Anime buscar(TK key){
+      // tomar en cuenta cuando no hay ordenado
+      if(ord_size == 0){
+        return buscar_aux(key);
+      }
       int pos = buscar_posicion(key);
-      Anime del;
-      del.id = -1;
+      Anime defa; 
       Anime anime;
       ifstream file(filename, ios::binary);
       file.seekg(sizeof(Anime)*pos, ios::beg);
       file.read((char*) & anime, sizeof(anime));
-      if(anime.id == key){
-       return anime;
+      // tomar en cuenta caso donde el elemento esté antes del primer ordenado
+
+      if(anime.id == key && !anime.eliminado){
+        file.close();
+        return anime;
       }else{
-        return del;
+        // buscar en auxiliar hasta el final o el siguiente ordenado
+        if(anime.next < ord_size || anime.next == -1){
+          return defa;
+        }
+        file.seekg(sizeof(Anime)*anime.next, ios::beg);
+        file.read((char*) & anime, sizeof(anime));
+        while(anime.next >= ord_size || anime.next != -1){
+          if(anime.id == key  && !anime.eliminado){
+            file.close();
+            return anime;
+          }
+          file.seekg(sizeof(Anime)*anime.next, ios::beg);
+          file.read((char*) & anime, sizeof(anime));
+        }
+        file.close();
+        return defa;
       }
     }
     
     vector<Anime> buscar_por_rango(TK key1, TK key2){
+      // si no hay ordenados
+      if(ord_size == 0){
+        return buscar_por_rango_aux(key1, key2);
+      }
       vector<Anime> animes;
       int inicio = buscar_posicion(key1);
+      // tomar en cuenta caso donde el inicio del rango esté antes del primer ordenado
+
       ifstream file(filename, ios::binary);
       Anime anime;
       file.seekg(sizeof(Anime)*inicio, ios::beg);
       file.read((char*) & anime, sizeof(anime));
-      while(anime.next != -1){
+      while(anime.next != -1  && !anime.eliminado){
         if(anime.id > key2){
           return animes;
         }
@@ -362,13 +487,63 @@ public:
         file.seekg(sizeof(Anime)*anime.next, ios::beg);
         file.read((char*) & anime, sizeof(anime));
       }
-      if(anime.id < key2){
+      if(anime.id < key2  && !anime.eliminado){
         animes.push_back(anime);
       } 
+      file.close();
       return animes;
     }
     
-    bool remover(TK key); // el booleano indica si se eliminó o no
+    // los efectos se muestran en la reconstrucción
+    bool remover(TK key){
+      // tomar en cuenta cuando no hay ordenado
+      if(ord_size == 0){
+        return remover_aux(key);
+      }
+      int pos = buscar_posicion(key);
+      Anime defa; 
+      Anime anime;
+      fstream file(filename, ios::in | ios::out | ios::binary);
+      file.seekg(sizeof(Anime)*pos, ios::beg);
+      file.read((char*) & anime, sizeof(anime));
+      // tomar en cuenta caso donde el elemento esté antes del primer ordenado
+
+      if(anime.id == key){
+        anime.eliminado = true; // eliminación lógica
+        file.seekg(sizeof(Anime)*pos, ios::beg);
+        file.write((char*) & anime, sizeof(anime));
+        file.close();
+        tam--;
+        if(tam - ord_size < 0){ // reconstruir en un archivo más pequeño
+          reconstruir(); 
+        }
+        return true;
+      }else{
+        // buscar en auxiliar hasta el final o el siguiente ordenado
+        if(anime.next < ord_size || anime.next == -1){
+          return false; // no hay elemento con esa llave a eliminar
+        }
+        file.seekg(sizeof(Anime)*anime.next, ios::beg);
+        file.read((char*) & anime, sizeof(anime));
+        while(anime.next >= ord_size || anime.next != -1){
+          if(anime.id == key){
+            anime.eliminado = true; // eliminación lógica
+            file.seekg(sizeof(Anime)*pos, ios::beg);
+            file.write((char*) & anime, sizeof(anime));
+            file.close();
+            tam--;
+            if(tam - ord_size < 0){ // reconstruir en un archivo más pequeño
+              reconstruir(); 
+            }
+            return true;
+          }
+          file.seekg(sizeof(Anime)*anime.next, ios::beg);
+          file.read((char*) & anime, sizeof(anime));
+          pos = anime.next;
+        }
+        return false; // no hay elemento con esa llave a eliminar
+      }
+    } // el booleano indica si se eliminó o no
     
     ~Seqfile() {
         // header,limite,ord_size,tam
