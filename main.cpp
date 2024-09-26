@@ -1,4 +1,4 @@
-#include "inicializacion.h"
+#include "parser.h"
 
 int main() {
     string nombreArchivo = "datos.csv";
@@ -23,9 +23,9 @@ int main() {
     int opcion;
     while(cin >> opcion){
         switch(opcion){
-        case 1: cout << "procesando..." << endl; leerCSV_Seqfile(nombreArchivo); break;
-        case 2: cout << "procesando..." << endl; leerCSV_AVL(nombreArchivo); break;
-        case 3: cout << "procesando..." << endl; leerCSV_ExtHash(nombreArchivo); break;
+        case 1: cout << "Se eligió la indexación por archivo secuencial" << endl; break;
+        case 2: cout << "Se eligió la indexación por árbol AVL" << endl; break;
+        case 3: cout << "Se eligió la indexación por extendible hashing" << endl; break;
         default: cout << "Ingrese un número válido" << endl;
         }
     }
@@ -35,10 +35,32 @@ int main() {
     cout << "Si quiere terminar escriba 'termine'" << endl;
     string consulta;
     cin >> consulta;
-    while(consulta != "termine"){
-        cout << "Consulta ejecutada" << endl;
-        // hacer el parser aquí
-        cin >> consulta;
+    if(opcion == 1){
+        Seqfile<int> sf("archivo_secuencial");
+        // parsear al sf
+        while(consulta != "termine"){
+            // llamar al parser aquí
+            //retornar
+            cin >> consulta;
+        }
+    }
+    if(opcion == 2){
+        // lógica de AVL
+        // parsear al avl
+        while(consulta != "termine"){
+            // llamar al parser aquí
+            // retornar
+            cin >> consulta;
+        }
+    }
+    if(opcion == 3){
+        // lógica de Extendible Hashing
+        // parsear al eh
+        while(consulta != "termine"){
+            // llamar al parser aquí
+            // retornar
+            cin >> consulta;
+        }
     }
     cout << "Sesión finalizada" << endl;
     return 0;
