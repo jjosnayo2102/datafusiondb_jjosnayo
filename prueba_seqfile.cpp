@@ -2,7 +2,7 @@
 #include <sstream>
 
 void leerCSV_Seqfile(const string& filename) {
-  Seqfile<int>* sf= new Seqfile<int>("prueba_secuencial");
+  Seqfile<int>* sf= new Seqfile<int>("archivo_secuencial");
   ifstream file(filename);
   string line;
   if (!file.is_open()) {
@@ -10,7 +10,7 @@ void leerCSV_Seqfile(const string& filename) {
   }
   getline(file, line); // primero lee los nombres de los atributos
   int i = 0;
-  while (i < 5) {
+  while (i < 100000) {
     getline(file, line);
     stringstream ss(line);
     string token;
@@ -96,13 +96,9 @@ int main() {
     // prueba general
     string nombreArchivo = "datos.csv";
     // inserción
-    leerCSV_Seqfile(nombreArchivo);
-    mostrar();
-    cout << endl;
-    // búsqueda
-    auto sf1 = new Seqfile<int>("prueba_secuencial");
-    Anime res = sf1->buscar(25777); // corregir
+    //leerCSV_Seqfile(nombreArchivo);
+    auto sf1 = new Seqfile<int>("archivo_secuencial");
+    Anime res = sf1->buscar(170);
     res.show();
-    cout << endl;
     return 0;
 }

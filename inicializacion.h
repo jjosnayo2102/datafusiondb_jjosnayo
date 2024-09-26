@@ -2,7 +2,7 @@
 #include <sstream>
 
 void leerCSV_Seqfile(const string& filename) {
-  Seqfile<int>* sf= new Seqfile<int>("prueba_secuencial");
+  Seqfile<int>* sf= new Seqfile<int>("archivo_secuencial");
   ifstream file(filename);
   string line;
   if (!file.is_open()) {

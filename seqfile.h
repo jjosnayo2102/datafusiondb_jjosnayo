@@ -38,8 +38,6 @@ struct Anime {
     cout << temporada << endl;
     cout << estado << endl;
     cout << estudio << endl;
-    cout << next << endl; // para las pruebas
-    cout << eliminado << endl; // para las pruebas
   }
 };
 
@@ -275,12 +273,16 @@ template<typename TK> // para indexar cualquier tipo de llave
       while (inicio <= fin) {
         m = inicio + (fin - inicio) / 2;
         Anime reg;
-        file.seekg(sizeof(Anime) * m, ios::beg);
-        file.read((char * ) & reg, sizeof(Anime));
+        file.seekg(sizeof(Anime)*m, ios::beg);
+        file.read((char * ) &reg, sizeof(Anime));
+        if(reg.id == key){
+          return m;
+        }
         if (reg.id < key) {
           menor_cercano = m; // Actualiza menor_cercano
           inicio = m + 1; // Busca en la parte derecha
         } else {
+          if(m == 0) return m;
           fin = m - 1; // Busca en la parte izquierda
         }
       }
@@ -306,60 +308,81 @@ public:
       archivo.close();
     }
 
-    bool insertar(Anime registro){ //tomar en cuenta los eliminados: -2
+    bool insertar(Anime registro){
       if(ord_size > 0){
         int pos = buscar_posicion(registro.id);
         Anime anime;
         fstream file(filename, ios::in | ios::out | ios::binary);
         file.seekg(sizeof(Anime)*pos, ios::beg);
         file.read((char*) & anime, sizeof(anime));
-        if (pos == 0 && registro.id < anime.id) {
-            // Modificar el header para que apunte al nuevo registro
-            if (header == 0) {
-                // Asignar el nuevo registro como header
-                file.seekg(0, ios::end);
-                int ntam = file.tellg()/sizeof(Anime);
-                anime.next = header;
-                file.write((char*) & anime, sizeof(anime));
-                header = ntam;
-                tam += 1;
-                file.close();
-                if ((tam - ord_size) >= limite) {
-                  reconstruir();
-                }
-                return true;
-            } else {
-                // si el header no es 0 ya ha sido modificado: ubicarlo en la lista de menores al primer ordenado
-                Anime menor;
-                file.seekg(sizeof(Anime)*header, ios::beg);
-                file.read((char*)&menor, sizeof(menor));
-                anime = menor; // anime apuntará al previo
-                int ppos = header; // posición del previo
-                while(registro.id > menor.id) {
-                  // Mover al siguiente registro
-                  anime = menor;
-                  ppos = file.tellg()/sizeof(Anime);
-                  file.seekg(sizeof(Anime)*menor.next, ios::beg);
-                  file.read((char*)&menor, sizeof(menor));
-                }
-                if(menor.id == registro.id){
-                  file.close();
-                  return false;
-                }
-                file.seekg(0, ios::end);
-                int ntam = file.tellg()/sizeof(Anime); // Nueva posición del registro
-                registro.next = anime.next;
-                file.write((char*)&registro, sizeof(registro));
-                anime.next= ntam;
-                file.seekg(sizeof(Anime)*ppos, ios::end); // posición del previo
-                file.write((char*)&anime, sizeof(anime));
-                tam += 1;
-                file.close();
-                if ((tam - ord_size) >= limite) {
-                  reconstruir();
-                }
-                return true;
+        if (pos == 0 && registro.id < anime.id && !anime.eliminado) {
+          // leer el header
+          Anime actual; // actual
+          file.seekg(sizeof(Anime)*header, ios::beg);
+          file.read((char*) & actual, sizeof(actual));
+          // Modificar el header para que apunte al nuevo registro
+          if(actual.id > registro.id){
+            // Asignar el nuevo registro como header
+            file.seekg(0, ios::end);
+            int ntam = file.tellg()/sizeof(Anime);
+            registro.next = header;
+            file.write((char*) & registro, sizeof(registro));
+            header = ntam;
+            tam += 1;
+            file.close();
+            if ((tam - ord_size) >= limite) {
+              reconstruir();
             }
+            return true;
+          }
+          int apos = header;
+          int npos = actual.next;
+          Anime siguiente;
+          file.seekg(sizeof(Anime)*actual.next, ios::beg);
+          file.read((char*) & siguiente, sizeof(siguiente));
+          while(actual.next > ord_size) {
+            if(actual.id == registro.id && !actual.eliminado){ // si está eliminado se puede volver a poner en la misma posición
+              file.close();
+              return false;
+            }
+            if((actual.id < registro.id) && (registro.id < siguiente.id) && !actual.eliminado){
+              file.seekg(0, ios::end);
+              int ntam = file.tellg()/sizeof(Anime); // Nueva posición del registro
+              registro.next = actual.next;
+              file.write((char*)&registro, sizeof(registro));
+              actual.next = ntam;
+              file.seekg(sizeof(Anime)*apos, ios::beg);
+              file.write((char*)&actual, sizeof(actual));
+              tam += 1;
+              file.close();
+              if ((tam - ord_size) >= limite) {
+                reconstruir();
+              }
+              return true;
+            }
+            // Mover al siguiente registro
+            actual = siguiente;
+            file.seekg(sizeof(Anime)*siguiente.next, ios::beg);
+            file.read((char*)&siguiente, sizeof(siguiente));
+          }
+          if(actual.id == registro.id && !actual.eliminado){ // si está eliminado se puede volver a poner en la misma posición
+            file.close();
+            return false;
+          }
+          // si es menor que el primero pero es mayor que la lista de menores se pone al final de esta
+          file.seekg(0, ios::end);
+          int ntam = file.tellg()/sizeof(Anime); // Nueva posición del registro
+          registro.next = actual.next;
+          file.write((char*)&registro, sizeof(registro));
+          actual.next = ntam;
+          file.seekg(sizeof(Anime)*apos, ios::beg);
+          file.write((char*)&actual, sizeof(actual));
+          tam += 1;
+          file.close();
+          if ((tam - ord_size) >= limite) {
+              reconstruir();
+          }
+          return true;
         }
         // apunta a ordenado: modificar puntero y agregarlo al nuevo elemento al final
         if(anime.next < ord_size){ // también toma en cuenta el -1
@@ -379,21 +402,25 @@ public:
         }
         // apunta a auxiliar: ubicar en la lista de auxiliares
         else{
-          Anime panime = anime; // panime apuntará al previo
-          int ppos = pos; // posición del previo
-          file.seekg(sizeof(Anime)*anime.next, ios::beg);
-          file.read((char*)&anime, sizeof(anime)); // primer auxiliar
-          // Mover al siguiente registro
-          while(registro.id > anime.id) {
-            // último de la lista
-            if(anime.next == -1){
+          Anime actual = anime;
+          int apos = pos;
+          int npos = actual.next;
+          Anime siguiente;
+          file.seekg(sizeof(Anime)*actual.next, ios::beg);
+          file.read((char*) & siguiente, sizeof(siguiente));
+          while(actual.next > ord_size) {
+            if(actual.id == registro.id && !actual.eliminado){ // si está eliminado se puede volver a poner en la misma posición
+              file.close();
+              return false;
+            }
+            if((actual.id < registro.id) && (registro.id < siguiente.id) && !actual.eliminado){
               file.seekg(0, ios::end);
               int ntam = file.tellg()/sizeof(Anime); // Nueva posición del registro
-              registro.next = anime.next;
+              registro.next = actual.next;
               file.write((char*)&registro, sizeof(registro));
-              anime.next= ntam;
-              file.seekg(sizeof(Anime)*pos, ios::end); // posición actual
-              file.write((char*)&panime, sizeof(panime));
+              actual.next = ntam;
+              file.seekg(sizeof(Anime)*apos, ios::beg);
+              file.write((char*)&actual, sizeof(actual));
               tam += 1;
               file.close();
               if ((tam - ord_size) >= limite) {
@@ -401,27 +428,27 @@ public:
               }
               return true;
             }
-            panime = anime;
-            ppos = file.tellg()/sizeof(Anime);
-            pos = anime.next;
-            file.seekg(sizeof(Anime)*anime.next, ios::beg);
-            file.read((char*)&anime, sizeof(anime));
+            // Mover al siguiente registro
+            actual = siguiente;
+            file.seekg(sizeof(Anime)*siguiente.next, ios::beg);
+            file.read((char*)&siguiente, sizeof(siguiente));
           }
-          if(anime.id == registro.id){
+          if(actual.id == registro.id && !actual.eliminado){ // si está eliminado se puede volver a poner en la misma posición
             file.close();
             return false;
           }
+          // si es menor que el elemento ordenado pero es mayor que la lista se pone al final de esta
           file.seekg(0, ios::end);
           int ntam = file.tellg()/sizeof(Anime); // Nueva posición del registro
-          registro.next = panime.next;
+          registro.next = actual.next;
           file.write((char*)&registro, sizeof(registro));
-          panime.next= ntam;
-          file.seekg(sizeof(Anime)*ppos, ios::end); // posición del previo
-          file.write((char*)&panime, sizeof(panime));
+          actual.next = ntam;
+          file.seekg(sizeof(Anime)*apos, ios::beg);
+          file.write((char*)&actual, sizeof(actual));
           tam += 1;
           file.close();
           if ((tam - ord_size) >= limite) {
-            reconstruir();
+              reconstruir();
           }
           return true;
         }
@@ -501,7 +528,6 @@ public:
         return remover_aux(key);
       }
       int pos = buscar_posicion(key);
-      Anime defa; 
       Anime anime;
       fstream file(filename, ios::in | ios::out | ios::binary);
       file.seekg(sizeof(Anime)*pos, ios::beg);
