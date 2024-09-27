@@ -1,4 +1,6 @@
 # datafusiondb_jjosnayo
+# Para ejecutar el programa solo compila el main.cpp: g++ main.cpp, .\a.exe
+
 El repositorio está compuesto por los siguientes archivos:
 
 -anime-dataset-2023.csv: El dataset original de kaggle.
@@ -7,21 +9,19 @@ El repositorio está compuesto por los siguientes archivos:
 
 -filtro.py: Para filtrar el dataset original.
 
--main.cpp: Que contiene la función para leer los datos a utilizar y convertirlos a la estructura de registros.
+-main.cpp: Contiene la interfaz del programa.
 
--seqfile.h: Para implementar el archivo secuencial.
+-parser.h: Contiene la implementación del parser que transforma las consultas en lenguaje natural en las funciones de las clases.
 
--avl.h: Para implementar el archivo AVL.
+-inicialización.h: Contiene la generación de los índices con los que se van a trabajar, está aislado del programa.
 
--ext_hash: Para implementar el extendable hashing.
+-auxiliar.cpp: Contiene las llamadas a la generación de los índices, además de pruebas de las funciones de cada estructura, está hecho para inicializar, está aislado del programa.
+
+-seqfile.h: Contiene la implementación del archivo secuencial además de la estructura del registro.
+
+-avl.h: Contiene la implementación del archivo AVL.
+
+-ext_hash: Contiene la implementación del extendable hashing además de la estructura del bloque.
 
 -----------------------------------------------------------------------------------------------------------------
-La idea es que mediante el main.cpp se creen los archivos e índices necesarios para cada método de organización, para que mediante una interfaz en python se pueda seleccionar una técnica para hacer las consultas y así trabajar con sus archivos asociados. Para hacer las consultas se dispondrá de un parser que ejecutará las funciones correspondientes a las consultas SQL.
-
-TODO:
-
--archivos asociados a cada método de organización
-
--archivo de python con el parser
-
--archivo de python con la interfaz
+El funcionamiento es el siguiente: el usuario eligirá el método de indexación e ingresará sus consultas las cuales pasarán del main al parser para ejecutar las funciones del método de indexación elegido. Los archivos indexados necesarios para cada método ya estarán creados previamente mediante auxiliar.cpp e inicialización.h. El filtro funciona solo mediante la llave primaria, donde no deberían haber elementos repetidos, aunque puede manejar cualquier tipo de llave para trabajar con tablas con otros tipos de llave. El programa está configurado para trabajar con una tabla en específico, la cual es la del archivo csv, por eso ya tiene configurados los atributos y tipos de la tabla, que se encuentran en la especificación del registro llamado Anime.
