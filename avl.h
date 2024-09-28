@@ -1,48 +1,69 @@
 #include "seqfile.h"
 
 template<typename TK>
-class AVLFile {
+class AVLFile: public DataFusion<TK> {
 private:
   string filename;
-  long pos_root;
+  int pos_root;
   bool es_hoja(Anime record);
-  vector<Anime> inOrder(int pos);
-  bool insert(int pos, Anime record, fstream& file);
+  bool insertar(int pos, Anime record, fstream& file);
+  vector<Anime> buscar_por_rango(int pos, TK id1, TK id2);
+  void actualizar_padre(int pos, int pos_hijo_actual, int nuevo_hijo, fstream &file);
+  int buscar_sucesor(int pos, fstream& file);
+  bool remover(int pos, TK key, fstream &file);
   // para ser AVL
-  int height(int pos);
+  int height(int pos, fstream& file);
   void balance(int pos, fstream& file);
-  int balancingFactor(int pos);
-  void leftRotate(int pos);
-  void rightRotate(int pos);
+  int balancingFactor(int pos, fstream& file);
+  void leftRotate(int pos, fstream& file);
+  void rightRotate(int pos, fstream& file);
 
 public :
   AVLFile(string filename){
-    this->filename = filename;
-    ifstream file(filename, ios::binary);
+    this->filename = filename + ".bin";
+    ifstream file(this->filename, ios::binary);
     if(!file.is_open()){
         this->pos_root = 0;
-        ofstream archivo(filename, ios::binary);
-        file.write((char*) &pos_root, sizeof(int)); //primer valor
+        ofstream archivo(this->filename, ios::binary);
+        archivo.write((char*) &pos_root, sizeof(int)); //primer valor
     }else{
         file.read((char*) &pos_root, sizeof(int)); //primer valor
     }
   }
 
-  bool insert(Anime record) {
+  bool insertar(Anime record) override{
     fstream file(filename, ios::in | ios::out | ios::binary);
-    bool res = insert(this->root, record, file);
+    bool res = false;
+    file.seekg(0, ios::end);
+    if(sizeof(int) != file.tellg()){
+        res = insertar(this->pos_root, record, file);
+        file.close();
+        return res;
+    }else{ //caso especial: 0 elementos
+        file.write((char*)(&record), sizeof(Anime));
+        file.close();
+        return true;
+    }
+  }
+
+  Anime buscar(TK codigo) override;
+  
+  vector<Anime> buscar_por_rango(TK id1, TK id2) override{
+    return buscar_por_rango(this->pos_root, id1, id2);
+  }
+
+  bool remover(TK key) override{
+    fstream file(this->filename, ios::in | ios::out | ios::binary);
+    if (!file.is_open()) return false;
+    bool res = false;
+    file.seekg(0, ios::end);
+    // Si el archivo no está vacío, llama a la función auxiliar de eliminación
+    if (sizeof(int) != file.tellg()) {
+        res = remover(this->pos_root, key, file);
+    }
     file.close();
     return res;
   }
-
-  Anime find(TK codigo);
-
-  vector<Anime> inorder(){
-     return inOrder(pos_root);
-  }
-  // hacer una variación para la búsqueda por rango
-
-  bool remove(TK key);
 };
 
 template <typename TK>
@@ -51,33 +72,7 @@ bool AVLFile<TK>::es_hoja(Anime record){
 }
 
 template <typename TK>
-vector<Anime> AVLFile<TK>::inOrder(int pos) {
-    vector<Anime> records;
-    ifstream file(this->filename, ios::binary);
-    if (!file.is_open()) return records;
-    Anime nodo;
-    file.seekg(sizeof(int) + pos*sizeof(Anime), ios::beg);
-    file.read((char*)&nodo, sizeof(Anime));
-    if (nodo.left != -1) {
-        vector<Anime> leftRecords = inOrder(nodo.left);
-        records.insert(records.end(), leftRecords.begin(), leftRecords.end());
-    }
-    records.push_back(nodo);
-    if (nodo.right != -1) {
-        vector<Anime> rightRecords = inOrder(nodo.right);
-        records.insert(records.end(), rightRecords.begin(), rightRecords.end());
-    }
-    return records;
-}
-
-template <typename TK>
-bool AVLFile<TK>::insert(int pos, Anime record, fstream &file) {
-    //caso especial: 0 elementos
-    file.seekg(0, ios::end);
-    if(sizeof(int) == file.tellg()){
-        file.write((char*)(&record), sizeof(Anime));
-        return true;
-    }
+bool AVLFile<TK>::insertar(int pos, Anime record, fstream &file) {
     // Leer el nodo en la posición actual
     file.seekg(sizeof(int) + sizeof(Anime)*pos, ios::beg);
     Anime currentNode;
@@ -87,12 +82,13 @@ bool AVLFile<TK>::insert(int pos, Anime record, fstream &file) {
         // Mover al final del archivo
         file.seekp(0, ios::end);
         int npos = (file.tellp() - sizeof(int))/ sizeof(Anime);
+        record.padre = pos;
         if(record.id < currentNode.id){
             currentNode.left = npos;
             // Actualizar el nodo modificado (escribiéndolo de vuelta al archivo)
             file.seekp(sizeof(int) + sizeof(Anime) * pos, ios::beg);
             file.write((char*)(&currentNode), sizeof(Anime));
-        }else if(record.id < currentNode.id){
+        }else if(record.id > currentNode.id){
             currentNode.right = npos;
             // Actualizar el nodo modificado (escribiéndolo de vuelta al archivo)
             file.seekp(sizeof(int) + sizeof(Anime) * pos, ios::beg);
@@ -110,20 +106,42 @@ bool AVLFile<TK>::insert(int pos, Anime record, fstream &file) {
     bool l = true;
     bool r = true;
     if (record.id < currentNode.id) {
-        l = insert(currentNode.left, record, file);  // Recursión para la izquierda
-    } else {
-        r = insert(currentNode.right, record, file); // Recursión para la derecha
-    }
-    // Balancear el nodo después de la inserción
-    if(l == 0 || r == 0){
+        if(currentNode.left == -1){
+            file.seekp(0, ios::end);
+            int npos = (file.tellp() - sizeof(int))/ sizeof(Anime);
+            record.padre = pos;
+            file.write((char*)(&record), sizeof(Anime));
+            currentNode.left = npos;
+            file.seekp(sizeof(int) + sizeof(Anime) * pos, ios::beg);
+            file.write((char*)(&currentNode), sizeof(Anime));
+            return true;
+        }
+        l = insertar(currentNode.left, record, file);  // Recursión para la izquierda
+    } else if (record.id > currentNode.id) {
+        if(currentNode.right == -1){
+            file.seekp(0, ios::end);
+            int npos = (file.tellp() - sizeof(int))/ sizeof(Anime);
+            record.padre = pos;
+            file.write((char*)(&record), sizeof(Anime));
+            currentNode.right = npos;
+            file.seekp(sizeof(int) + sizeof(Anime) * pos, ios::beg);
+            file.write((char*)(&currentNode), sizeof(Anime));
+            return true;
+        }
+        r = insertar(currentNode.right, record, file); // Recursión para la derecha
+    }else{
         return false;
     }
+    if(!l || !r){
+        return false;
+    }
+    // Balancear el nodo después de la inserción
     balance(pos, file); // revisa para cada nodo en el camino si es necesario balancear
     return true;
 }
 
 template <typename TK>
-Anime AVLFile<TK>::find(TK codigo){
+Anime AVLFile<TK>::buscar(TK codigo){
     Anime ret;
     ifstream file(this->filename, ios::binary);
     if(!file.is_open()) return ret;
@@ -154,206 +172,285 @@ Anime AVLFile<TK>::find(TK codigo){
     }
 }
 
-//modificar para implementar balanceo
 template <typename TK>
-bool AVLFile<TK>::remove(TK key) {
-    fstream file(this->filename, ios::in | ios::out | ios::binary);
-    if (!file.is_open()) return false;
+vector<Anime> AVLFile<TK>::buscar_por_rango(int pos, TK id1, TK id2) {
+    vector<Anime> records;
+    ifstream file(this->filename, ios::binary);
+    if (!file.is_open()) return records;
 
-    int parent_pos = -1;  // Posición del nodo padre
-    int current_pos = pos_root;  // Comenzamos desde la raíz
-    bool is_left_child = false;  // Determina si el nodo es un hijo izquierdo
     Anime nodo;
+    file.seekg(sizeof(int) + pos * sizeof(Anime), ios::beg);
+    file.read((char*)&nodo, sizeof(Anime));
 
-    // Buscar el nodo que se va a eliminar
-    while (current_pos != -1) {
-        file.seekg(sizeof(int) + current_pos * sizeof(Record), ios::beg);
-        file.read((char*)&nodo, sizeof(Record));
-        
-        if (key == nodo.id) {
-            break; // Nodo encontrado
-        }
-
-        parent_pos = current_pos;
-        if (key < nodo.id) {
-            is_left_child = true;
-            current_pos = nodo.left;
-        } else {
-            is_left_child = false;
-            current_pos = nodo.right;
-        }
+    // Si el nodo actual tiene un hijo izquierdo y el id1 es menor o igual que el id del nodo actual,
+    // exploramos el subárbol izquierdo (ya que puede contener valores en el rango)
+    if (nodo.left != -1 && id1 <= nodo.id) {
+        vector<Anime> leftRecords = buscar_por_rango(nodo.left, id1, id2);
+        records.insert(records.end(), leftRecords.begin(), leftRecords.end());
     }
 
-    if (current_pos == -1) {
-        // Nodo no encontrado
-        file.close();
-        return false;
+    // Si el id del nodo está dentro del rango, lo agregamos al resultado
+    if (nodo.id >= id1 && nodo.id <= id2) {
+        records.push_back(nodo);
     }
 
-    // Caso 1: Nodo es una hoja
-    if (nodo.left == -1 && nodo.right == -1) {
-        if (parent_pos == -1) {
-            // Nodo es la raíz
-            pos_root = -1;
-        } else {
-            // Nodo no es la raíz
-            file.seekg(sizeof(int) + parent_pos * sizeof(Record), ios::beg);
-            file.read((char*) &nodo, sizeof(Record));
-            if (is_left_child) {
-                nodo.left = -1;
-            } else {
-                nodo.right = -1;
-            }
-            file.seekp(sizeof(int) + parent_pos * sizeof(Record), ios::beg);
-            file.write((char*)&nodo, sizeof(Record));
-        }
-    }
-    // Caso 2: Nodo tiene un solo hijo
-    else if (nodo.left == -1 || nodo.right == -1) {
-        int child_pos = (nodo.left != -1) ? nodo.left : nodo.right;
-
-        if (parent_pos == -1) {
-            // Nodo es la raíz
-            pos_root = child_pos;
-        } else {
-            // Nodo no es la raíz
-            file.seekg(sizeof(int) + parent_pos * sizeof(Record), ios::beg);
-            file.read((char*) &nodo, sizeof(Record));
-            if (is_left_child) {
-                nodo.left = child_pos;
-            } else {
-                nodo.right = child_pos;
-            }
-            file.seekp(sizeof(int) + parent_pos * sizeof(Record), ios::beg);
-            file.write((char*)&nodo, sizeof(Record));
-        }
-    }
-    // Caso 3: Nodo tiene dos hijos
-    else {
-        // Encontrar el sucesor inorden (el nodo más pequeño en el subárbol derecho)
-        int successor_pos = nodo.right;
-        int successor_parent_pos = current_pos;
-        Anime successor;
-
-        while (true) {
-            file.seekg(sizeof(int) + successor_pos * sizeof(Anime), ios::beg);
-            file.read((char*)&successor, sizeof(Anime));
-            if (successor.left == -1) break;
-            successor_parent_pos = successor_pos;
-            successor_pos = successor.left;
-        }
-
-        // Reemplazar datos del nodo a eliminar con el sucesor
-        file.seekp(sizeof(int) + current_pos * sizeof(Anime), ios::beg);
-        file.write((char*)&successor, sizeof(Anime));
-
-        // Ajustar los punteros del sucesor
-        if (successor_parent_pos != current_pos) {
-            file.seekg(sizeof(int) + successor_parent_pos * sizeof(Anime), ios::beg);
-            file.read((char*) &nodo, sizeof(Anime));
-            nodo.left = successor.right;
-            file.seekp(sizeof(int) + successor_parent_pos * sizeof(Anime), ios::beg);
-            file.write((char*)&nodo, sizeof(Anime));
-        } else {
-            // El sucesor está directamente a la derecha del nodo a eliminar
-            file.seekg(sizeof(int) + current_pos * sizeof(Anime), ios::beg);
-            file.read((char*) &nodo, sizeof(Anime));
-            nodo.right = successor.right;
-            file.seekp(sizeof(int) + current_pos * sizeof(Anime), ios::beg);
-            file.write((char*)&nodo, sizeof(Anime));
-        }
+    // Si el nodo actual tiene un hijo derecho y el id2 es mayor o igual que el id del nodo actual,
+    // exploramos el subárbol derecho (ya que puede contener valores en el rango)
+    if (nodo.right != -1 && id2 >= nodo.id) {
+        vector<Anime> rightRecords = buscar_por_rango(nodo.right, id1, id2);
+        records.insert(records.end(), rightRecords.begin(), rightRecords.end());
     }
 
-    file.close();
-    return true;
+    return records;
 }
 
-// modificar funciones de balanceo: caso base es nodo hoja, no posición -1
+
 
 template <typename TK>
-int AVLFile<TK>::height(int pos) {
-    if (pos == -1) return -1;
-    ifstream file(this->filename, ios::binary);
-    if (!file.is_open()) return -1;
+void AVLFile<TK>::actualizar_padre(int pos_padre, int pos_hijo_actual, int nuevo_hijo, fstream &file) {
+    // Obtener el nodo padre en la posición pos_padre
+    file.seekg(sizeof(int) + sizeof(Anime) * pos_padre, ios::beg);
+    Anime nodo_padre;
+    file.read((char*)&nodo_padre, sizeof(Anime));
+
+    // Actualizar el puntero al hijo correspondiente (izquierdo o derecho)
+    if (nodo_padre.left == pos_hijo_actual) {
+        nodo_padre.left = nuevo_hijo;  // Actualizar el hijo izquierdo
+    } else if (nodo_padre.right == pos_hijo_actual) {
+        nodo_padre.right = nuevo_hijo; // Actualizar el hijo derecho
+    }
+
+    // Escribir los cambios de vuelta al archivo
+    file.seekp(sizeof(int) + sizeof(Anime) * pos_padre, ios::beg);
+    file.write((char*)&nodo_padre, sizeof(Anime));
+}
+
+template <typename TK>
+int AVLFile<TK>::buscar_sucesor(int pos, fstream &file) {
+    if (pos == -1) return -1;  // No hay sucesor si el subárbol está vacío
+
+    Anime nodo;
+
+    // Movernos al nodo en la posición 'pos'
+    file.seekg(sizeof(int) + sizeof(Anime) * pos, ios::beg);
+    file.read((char*)&nodo, sizeof(Anime));
+
+    // Seguir moviéndose a la izquierda hasta encontrar el nodo más pequeño
+    while (nodo.left != -1) {
+        pos = nodo.left;
+        file.seekg(sizeof(int) + sizeof(Anime) * pos, ios::beg);
+        file.read((char*)&nodo, sizeof(Anime));
+    }
+    // Devolver la posición del sucesor
+    return pos;
+}
+
+
+template <typename TK>
+bool AVLFile<TK>::remover(int pos, TK key, fstream &file) {
+    if (pos == -1) return false;  // El nodo no se encontró
+
+    // Leer el nodo en la posición actual
+    file.seekg(sizeof(int) + sizeof(Anime) * pos, ios::beg);
+    Anime nodo;
+    file.read((char*)&nodo, sizeof(Anime));
+
+    if (key < nodo.id) {
+        // Eliminar del subárbol izquierdo
+        bool res = remover(nodo.left, key, file);
+        if (res) balance(pos, file);  // Balancear si se eliminó
+        return res;
+    } else if (key > nodo.id) {
+        // Eliminar del subárbol derecho
+        bool res = remover(nodo.right, key, file);
+        if (res) balance(pos, file);  // Balancear si se eliminó
+        return res;
+    } else {
+        // El nodo a eliminar ha sido encontrado
+        if (nodo.left == -1 && nodo.right == -1) {
+            // Caso 1: El nodo es una hoja
+            if (nodo.padre != -1) {
+                actualizar_padre(nodo.padre, pos, -1, file);  // Desconectar el nodo del padre
+            } else {
+                // Si es la raíz, actualizamos la raíz a -1
+                this->pos_root = -1;
+            }
+        } else if (nodo.left == -1 || nodo.right == -1) {
+            // Caso 2: El nodo tiene un solo hijo
+            int hijo = (nodo.left != -1) ? nodo.left : nodo.right;
+            if (nodo.padre != -1) {
+                actualizar_padre(nodo.padre, pos, hijo, file);  // Enlazar el hijo con el padre
+            } else {
+                // Si es la raíz, el hijo pasa a ser la nueva raíz
+                this->pos_root = hijo;
+            }
+        } else {
+            // Caso 3: El nodo tiene dos hijos
+            int sucesor_pos = buscar_sucesor(nodo.right, file);
+            Anime sucesor;
+            file.seekg(sizeof(int) + sizeof(Anime) * sucesor_pos, ios::beg);
+            file.read((char*)&sucesor, sizeof(Anime));
+
+            // Reemplazar los datos del nodo a eliminar con el sucesor
+            nodo.id = sucesor.id;
+            file.seekp(sizeof(int) + sizeof(Anime) * pos, ios::beg);
+            file.write((char*)&nodo, sizeof(Anime));
+
+            // Eliminar el sucesor
+            remover(sucesor_pos, sucesor.id, file);
+        }
+
+        // Balancear el árbol después de la eliminación
+        balance(nodo.padre, file);
+        return true;
+    }
+}
+
+
+template <typename TK>
+int AVLFile<TK>::height(int pos, fstream& file) {
     Anime nodo;
     file.seekg(sizeof(int)+pos * sizeof(Anime), ios::beg);
     file.read((char*)&nodo, sizeof(Anime));
-    int left_height = height(nodo.left);
-    int right_height = height(nodo.right);
+    if(es_hoja(nodo)){
+        return 0;
+    }
+    int left_height = 0;
+    int right_height = 0;
+    if(nodo.left != -1){
+        int left_height = height(nodo.left, file);
+    }
+    if(nodo.right != -1){
+        int right_height = height(nodo.right, file);
+    }
     return max(left_height, right_height) + 1;
 }
 
 template <typename TK>
-int AVLFile<TK>::balancingFactor(int pos) {
-    if (pos == -1) return 0;
-    ifstream file(this->filename, ios::binary);
-    if (!file.is_open()) return 0;
+int AVLFile<TK>::balancingFactor(int pos, fstream& file) {
     Anime nodo;
-    file.seekg(sizeof(int)+pos * sizeof(Anime), ios::beg);
+    file.seekg(sizeof(int)+pos*sizeof(Anime), ios::beg);
     file.read((char*)&nodo, sizeof(Anime));
-    int left_height = height(nodo.left);
-    int right_height = height(nodo.right);
+    int left_height = -1;
+    int right_height = -1;
+    if(nodo.left != -1) left_height = height(nodo.left, file);
+    if(nodo.right != -1) right_height = height(nodo.right, file);
     return left_height - right_height;
 }
 
 template <typename TK>
-void AVLFile<TK>::leftRotate(int pos) {
-    fstream file(this->filename, ios::in | ios::out | ios::binary);
-    if (!file.is_open()) return;
+void AVLFile<TK>::leftRotate(int pos, fstream& file) {
     Anime node;
     file.seekg(sizeof(int)+pos * sizeof(Anime), ios::beg);
     file.read((char*)&node, sizeof(Anime));
+
     Anime rightNode;
     file.seekg(sizeof(int)+node.right * sizeof(Anime), ios::beg);
     file.read((char*)&rightNode, sizeof(Anime));
+
+    Anime parentNode;
+    if(node.padre != -1){
+        file.seekg(sizeof(int)+node.padre * sizeof(Anime), ios::beg);
+        file.read((char*)&parentNode, sizeof(Anime));
+        if(parentNode.left == pos){
+            parentNode.left = node.right;
+            file.seekg(sizeof(int)+node.padre * sizeof(Anime), ios::beg);
+            file.write((char*)&parentNode, sizeof(Anime));
+        }
+        else{
+            parentNode.right = node.right;
+            file.seekg(sizeof(int)+node.padre * sizeof(Anime), ios::beg);
+            file.write((char*)&parentNode, sizeof(Anime));
+        }
+    }
+
+    int derecha = node.right; // posición del hijo
+    int padre = node.padre;
+
     node.right = rightNode.left;
+    node.padre = derecha;
     file.seekp(sizeof(int)+pos * sizeof(Anime), ios::beg);
-    file.write((char*)&node, sizeof(Anime));
+    file.write((char*)&node, sizeof(Anime)); // guardar en nodo
+
     rightNode.left = pos;
-    pos = node.right; // actualizar la posición del nodo original al nuevo nodo raíz
-    file.seekp(sizeof(int)+pos * sizeof(Anime), ios::beg);
-    file.write((char*)&rightNode, sizeof(Anime));
-    file.close();
+    rightNode.padre = padre;
+    file.seekp(sizeof(int)+derecha*sizeof(Anime), ios::beg);
+    file.write((char*)&rightNode, sizeof(Anime)); // guardar en hijo
+
+    //ver caso donde el nodo es raíz
+    if(padre == -1){
+        this->pos_root = derecha;
+        file.seekg(0, ios::beg);
+        file.write((char*)&pos_root, sizeof(int));
+    }
 }
 
 template <typename TK>
-void AVLFile<TK>::rightRotate(int pos) {
-    fstream file(this->filename, ios::in | ios::out | ios::binary);
-    if (!file.is_open()) return;
+void AVLFile<TK>::rightRotate(int pos, fstream& file) {
     Anime node;
     file.seekg(sizeof(int)+pos * sizeof(Anime), ios::beg);
     file.read((char*)&node, sizeof(Anime));
+
     Anime leftNode;
     file.seekg(sizeof(int)+node.left * sizeof(Anime), ios::beg);
     file.read((char*)&leftNode, sizeof(Anime));
+
+    Anime parentNode;
+    if(node.padre != -1){
+        file.seekg(sizeof(int)+node.padre * sizeof(Anime), ios::beg);
+        file.read((char*)&parentNode, sizeof(Anime));
+        if(parentNode.left == pos){
+            parentNode.left = node.left;
+            file.seekg(sizeof(int)+node.padre * sizeof(Anime), ios::beg);
+            file.write((char*)&parentNode, sizeof(Anime));
+        }
+        else{
+            parentNode.right = node.left;
+            file.seekg(sizeof(int)+node.padre * sizeof(Anime), ios::beg);
+            file.write((char*)&parentNode, sizeof(Anime));
+        }
+    }
+
+    int izquierda = node.left; // posición del hijo
+    int padre = node.padre;
+
     node.left = leftNode.right;
+    node.padre = izquierda;
     file.seekp(sizeof(int)+pos * sizeof(Anime), ios::beg);
-    file.write((char*)&node, sizeof(Anime));
+    file.write((char*)&node, sizeof(Anime)); // guardar en nodo
+
     leftNode.right = pos;
-    pos = node.left; // actualizar la posición del nodo original al nuevo nodo raíz
-    file.seekp(sizeof(int)+pos * sizeof(Anime), ios::beg);
-    file.write((char*)&leftNode, sizeof(Anime));
-    file.close();
+    leftNode.padre = padre;
+    file.seekp(sizeof(int)+izquierda*sizeof(Anime), ios::beg);
+    file.write((char*)&leftNode, sizeof(Anime)); // guardar en hijo
+
+    //ver caso donde el nodo es raíz
+    if(padre == -1){
+        this->pos_root = izquierda;
+        file.seekg(0, ios::beg);
+        file.write((char*)&pos_root, sizeof(int));
+    }
 }
 
 template <typename TK>
 void AVLFile<TK>::balance(int pos, fstream& file) {
-    if (balancingFactor(pos) == 2) {
+    int bal = balancingFactor(pos, file);
+    if (bal == 2) { //desbalanceado a la izquierda
       Anime nodo;
       file.seekg(sizeof(int)+pos*sizeof(Anime), ios::beg);
       file.read((char*) &nodo, sizeof(Anime));
-      if(balancingFactor(nodo.left) == -1) {
-          leftRotate(nodo.left);
+      if(balancingFactor(nodo.left, file) == -1) {
+          leftRotate(nodo.left, file);
       }
-      rightRotate(pos);
+      rightRotate(pos, file);
     }
-    if (balancingFactor(pos) == -2) {
+    if (bal == -2) { //desbalanceado a la derecha
       Anime nodo;
       file.seekg(sizeof(int)+pos*sizeof(Anime), ios::beg);
       file.read((char*) &nodo, sizeof(Anime));
-      if(balancingFactor(nodo.right) == 1) {
-        rightRotate(nodo.right);
+      if(balancingFactor(nodo.right, file) == 1) {
+        rightRotate(nodo.right, file);
       }
-      leftRotate(pos);
+      leftRotate(pos, file);
     }
 }

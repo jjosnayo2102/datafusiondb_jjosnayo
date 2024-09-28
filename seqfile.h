@@ -1,48 +1,7 @@
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <cmath>
-#include <cstring>
-using namespace std;
-
-// en este caso la llave es int, en la creación de la tabla se describen los tipos y nombres para crear la clase registro
-struct Anime {
-  int id; // llave primaria
-  char nombre[100]; // nombre original
-  float puntaje; // del 0 al 10
-  char genero[50]; // a qué tipos de tramas pertenece
-  char tipo[10]; // serie, película o especial
-  float temporada; //estación y año en el que salió (año.(1,2,3,4) 1:verano, 2:otoño, 3:invierno, 4:primavera)
-  char estado[20]; // si ha terminado, está en emisión o aún no se emite
-  char estudio[30]; // empresa que la desarrolló
-  int next = -1; // para el archivo secuencial
-  bool eliminado = false; // para el archivo secuencial
-  int left = -1; // para el AVL
-  int right = -1; // para el AVL
-  Anime(){
-    id = -1;
-    strcpy(nombre, "UNKNOWN");
-    puntaje = -1;
-    strcpy(genero, "UNKNOWN");
-    strcpy(tipo, "UNKNOWN");
-    temporada = -1;
-    strcpy(estado, "UNKNOWN");
-    strcpy(estudio, "UNKNOWN");
-  }
-  void show() {
-    cout << id << endl;
-    cout << nombre << endl;
-    cout << puntaje << endl;
-    cout << genero << endl;
-    cout << tipo << endl;
-    cout << temporada << endl;
-    cout << estado << endl;
-    cout << estudio << endl;
-  }
-};
+#include "datafusion.h"
 
 template<typename TK> // para indexar cualquier tipo de llave
-  class Seqfile {
+  class Seqfile : public DataFusion<TK>{
     private: string filename;
     string aux_file;
     int header; //inicio de los punteros
@@ -308,7 +267,7 @@ public:
       archivo.close();
     }
 
-    bool insertar(Anime registro){
+    bool insertar(Anime registro) override{
       if(ord_size > 0){
         int pos = buscar_posicion(registro.id);
         Anime anime;
@@ -457,7 +416,7 @@ public:
       }
     }
 
-    Anime buscar(TK key){
+    Anime buscar(TK key) override{
       // tomar en cuenta cuando no hay ordenado
       if(ord_size == 0){
         return buscar_aux(key);
@@ -493,7 +452,7 @@ public:
       }
     }
     
-    vector<Anime> buscar_por_rango(TK key1, TK key2){
+    vector<Anime> buscar_por_rango(TK key1, TK key2) override{
       // si no hay ordenados
       if(ord_size == 0){
         return buscar_por_rango_aux(key1, key2);
@@ -522,7 +481,7 @@ public:
     }
     
     // los efectos se muestran en la reconstrucción
-    bool remover(TK key){
+    bool remover(TK key) override{
       // tomar en cuenta cuando no hay ordenado
       if(ord_size == 0){
         return remover_aux(key);

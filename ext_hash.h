@@ -5,31 +5,8 @@
 #define MAX_B 4
 using namespace std;
 
-struct Record {
-    char codigo[10];
-    char nombre[20];
-    char apellido[20];
-    int ciclo;
-
-    Record(){ciclo = -1;}
-   
-    void setData(ifstream &file) {
-        file.getline(codigo, 10, ',');
-        file.getline(nombre, 20, ',');
-        file.getline(apellido, 20, ',');
-        file>>ciclo; file.get();
-    }
-
-    void showData() {
-        cout<<setw(10)<<left<<codigo;
-        cout<<setw(10)<<left<<nombre;
-        cout<<setw(10)<<left<<apellido;
-        cout<<setw(10)<<left<<ciclo<<endl;
-    }
-};
-
 struct Bucket{
-    Record records[MAX_B];
+    Anime records[MAX_B];
     int size;
     long next_bucket;
 
@@ -40,17 +17,18 @@ struct Bucket{
 
     void showData(){
         cout<<"["<<endl;
-        for(int i=0;i<size;i++) records[i].showData();
+        for(int i=0;i<size;i++) records[i].show();
         cout<<"]"<<endl;
     }
 };
 
-class StaticHashFile {
+template<typename TK>
+class ExtendibleHashFile: public DataFusion<TK> {
 private:
     string filename;
-    int N;
+    int N; // profundidad global
 public:
-    StaticHashFile(string _filename, int _N){
+    ExtendibleHashFile(string _filename, int _N){
         filename = _filename;
         N = _N;
         ifstream archivo(filename, ios::binary);
@@ -66,11 +44,10 @@ public:
         file.close();
     }
 
-    void insert(Record record){
+    bool insertar(Anime record) override{
         //1- usando una funcion hashing ubicar la pagina de datos
-        string nombre = string(record.nombre);
-        hash<string> hf;
-        long key = hf(nombre);
+        hash<TK> hf;
+        long key = hf(record.id);
         int index = labs(key) % N;
         //2- leer la pagina de datos,
         fstream file(filename, ios::in | ios::out | ios::binary);
@@ -79,10 +56,17 @@ public:
         file.read((char*) &bloque, sizeof(Bucket));
         //3- verificar si size < MAX_B, si es asi, se inserta en esa pagina y se re-escribe al archivo
         if(bloque.size < MAX_B){
+            for(int i = 0; i < bloque.size; i++){
+                if(bloque.records[i].id == record.id){
+                    return false;
+                }
+            }
             bloque.records[bloque.size] = record;
             bloque.size += 1;
             file.seekg(index*sizeof(Bucket), ios::beg);
             file.write((char*) &bloque, sizeof(Bucket));
+            file.close();
+            return true;
         }
         //4- caso contrario, crear nuevo bucket, insertar ahi el nuevo registro, y enlazar
         else{
@@ -92,12 +76,17 @@ public:
                 file.seekg(bloque.next_bucket*sizeof(Bucket), ios::beg);
                 file.read((char*) &bloque, sizeof(Bucket));
                 if(bloque.size < MAX_B){
+                    for(int i = 0; i < bloque.size; i++){
+                        if(bloque.records[i].id == record.id){
+                            return false;
+                        }
+                    }
                     bloque.records[bloque.size] = record;
                     bloque.size += 1;
                     file.seekg(actpos*sizeof(Bucket), ios::beg);
                     file.write((char*) &bloque, sizeof(Bucket));
                     file.close();
-                    return;
+                    return true;
                 }
             }
             Bucket nuevo;
@@ -111,23 +100,22 @@ public:
             file.seekg(npos * sizeof(Bucket), ios::beg);
             file.write((char*) &nuevo, sizeof(Bucket));
         }
-        file.close();
         // si hay espacio libre en vez de crear el nuevo bucket al final se crea en el espacio libre
         // leer el archivo de posiciones libres hasta encontrar la primera posición que no sea -1
         // luego meter -1 a esa posición
     }
 
-    Record search(string nombre){
-        hash<string> hf;
-        long key = hf(nombre);
-        int index = labs(key) % N;
+    Anime buscar(TK key) override{
+        hash<TK> hf;
+        long llave = hf(key);
+        int index = labs(llave) % N;
         ifstream file(filename, ios::binary);
         file.seekg(index*sizeof(Bucket), ios::beg);
         Bucket bloque;
-        Record ret;
+        Anime ret;
         file.read((char*) &bloque, sizeof(Bucket));
         for(int i = 0; i < bloque.size; i++){
-            if(string(bloque.records[i].nombre) == nombre){
+            if(bloque.records[i].id == key){
                 ret = bloque.records[i];
                 file.close();
                 return ret;
@@ -137,7 +125,7 @@ public:
             file.seekg(bloque.next_bucket*sizeof(Bucket), ios::beg);
             file.read((char*) &bloque, sizeof(Bucket));
             for(int i = 0; i < bloque.size; i++){
-                if(string(bloque.records[i].nombre) == nombre){
+                if(bloque.records[i].id == key){
                     ret = bloque.records[i];
                     file.close();
                     return ret;
@@ -148,17 +136,31 @@ public:
         return ret;
     }
 
-    bool remove(string nombre){
+    // modificar para búsqueda por rango
+    void scanAll(){
+        ifstream file(filename, ios::binary);
+        Bucket bloque;
+        while(file.read((char*) &bloque, sizeof(Bucket))){
+            bloque.showData();
+        }
+    }
+
+    vector<Anime> buscar_por_rango(TK key1, TK key2) override{
+        vector<Anime> animes;
+        return animes;
+    }
+
+    bool remover(TK key) override{
         hash<string> hf;
-        long key = hf(nombre);
-        int index = labs(key) % N;
+        long llave = hf(key);
+        int index = labs(llave) % N;
         fstream file(filename, ios::in | ios::out | ios::binary);
         file.seekg(index*sizeof(Bucket), ios::beg);
         Bucket bloque;
-        Record del;
+        Anime del;
         file.read((char*) &bloque, sizeof(Bucket));
         for(int i = 0; i < bloque.size; i++){
-            if(string(bloque.records[i].nombre) == nombre){
+            if(bloque.records[i].id == key){
                 for(int j = i; j < bloque.size - 1; j++){
                     bloque.records[j] = bloque.records[j+1];
                 }
@@ -174,7 +176,7 @@ public:
             file.seekg(bloque.next_bucket*sizeof(Bucket), ios::beg);
             file.read((char*) &bloque, sizeof(Bucket));
             for(int i = 0; i < bloque.size; i++){
-                if(string(bloque.records[i].nombre) == nombre){
+                if(bloque.records[i].id == key){
                     for(int j = i; j < bloque.size - 1; j++){
                         bloque.records[j] = bloque.records[j+1];
                     }
@@ -191,14 +193,6 @@ public:
         // si el bloque no tiene siguiente, forma parte del espacio libre directamente
         // crear un archivo auxiliar de posiciones de buckets libres y meter la posición libre
         return false;      
-    }
-
-    void scanAll(){
-        ifstream file(filename, ios::binary);
-        Bucket bloque;
-        while(file.read((char*) &bloque, sizeof(Bucket))){
-            bloque.showData();
-        }
     }
 };
 
