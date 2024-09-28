@@ -3,16 +3,19 @@
 #include <functional>
 
 #define MAX_B 4
+#define D 3
 using namespace std;
 
 struct Bucket{
     Anime records[MAX_B];
     int size;
     long next_bucket;
+    int d; // profundidad local
 
-    Bucket(){
+    Bucket(int _d=1){
         size = 0;
         next_bucket = -1;
+        d = _d;
     }
 
     void showData(){
@@ -28,15 +31,17 @@ private:
     string filename;
     int N; // profundidad global
 public:
-    ExtendibleHashFile(string _filename, int _N){
-        filename = _filename;
+    ExtendibleHashFile(string _filename, int _N=D){
+        filename = _filename + ".bin";
         N = _N;
+        N = 1 << N;
         ifstream archivo(filename, ios::binary);
         if(archivo.is_open()){
             archivo.close();
             return;
         }
-        ofstream file(filename, ios::app | ios::binary);
+        archivo.close();
+        ofstream file(filename, ios::binary);
         for(int i = 0; i < N; i++){
             Bucket bloque;
             file.write((char*) &bloque, sizeof(Bucket));
@@ -70,7 +75,7 @@ public:
         }
         //4- caso contrario, crear nuevo bucket, insertar ahi el nuevo registro, y enlazar
         else{
-            long actpos = index;
+            int actpos = index;
             while(bloque.next_bucket != -1){
                 actpos = bloque.next_bucket;
                 file.seekg(bloque.next_bucket*sizeof(Bucket), ios::beg);
@@ -85,8 +90,6 @@ public:
                     bloque.size += 1;
                     file.seekg(actpos*sizeof(Bucket), ios::beg);
                     file.write((char*) &bloque, sizeof(Bucket));
-                    file.close();
-                    return true;
                 }
             }
             Bucket nuevo;
@@ -99,6 +102,8 @@ public:
             file.write((char*) &bloque, sizeof(Bucket));
             file.seekg(npos * sizeof(Bucket), ios::beg);
             file.write((char*) &nuevo, sizeof(Bucket));
+            file.close();
+            return true;
         }
         // si hay espacio libre en vez de crear el nuevo bucket al final se crea en el espacio libre
         // leer el archivo de posiciones libres hasta encontrar la primera posición que no sea -1
@@ -146,12 +151,13 @@ public:
     }
 
     vector<Anime> buscar_por_rango(TK key1, TK key2) override{
+        cout << "Búsqueda por rango no soportada" << endl;
         vector<Anime> animes;
         return animes;
     }
 
     bool remover(TK key) override{
-        hash<string> hf;
+        hash<TK> hf;
         long llave = hf(key);
         int index = labs(llave) % N;
         fstream file(filename, ios::in | ios::out | ios::binary);

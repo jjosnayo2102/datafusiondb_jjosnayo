@@ -46,7 +46,7 @@ int main() {
         indice = new AVLFile<int>("arbol_binario_balanceado");
     }
     if(opcion == 3){
-        indice = new ExtendibleHashFile<int>("arbol_binario_balanceado", 32);
+        indice = new ExtendibleHashFile<int>("arbol_binario_balanceado");
     }
     SQLParser<int> parser_sf(indice);
     while(consulta != "termine"){

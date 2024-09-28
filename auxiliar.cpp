@@ -2,15 +2,9 @@
 
 void mostrar(string indice){
   ifstream file(indice, ios::binary);
-  int root;
-  file.read((char*) &root, sizeof(int));
-  cout << root << endl;
-  Anime anime;
-  while(file.read((char*) &anime, sizeof(Anime))){
-    cout << anime.id << endl;
-    cout << anime.padre << endl;
-    cout << anime.left << endl;
-    cout << anime.right << endl;
+  Bucket bucket;
+  while(file.read((char*) &bucket, sizeof(Bucket))){
+    bucket.showData();
   }
 }
 
@@ -20,9 +14,9 @@ int main() {
     // creación de índice secuencial
     //leerCSV_Seqfile(nombreArchivo);
     // creación de índice AVL
-    leerCSV_AVL(nombreArchivo);
+    //leerCSV_AVL(nombreArchivo);
     // creación de índice hash
-    //leerCSV_ExtHash(nombreArchivo);
+    leerCSV_ExtHash(nombreArchivo);
 
     //seqfile:
     // prueba de funciones auxiliares
@@ -71,5 +65,8 @@ int main() {
     //   it.show();
     // }
     // funciona
+    // exthash:
+    // inserción:
+    // mostrar("tabla_hash_extensible.bin");
     return 0;
 }

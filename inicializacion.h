@@ -118,7 +118,7 @@ void leerCSV_AVL(string filename){
 }
 
 void leerCSV_ExtHash(string filename){
-  AVLFile<int>* avl= new AVLFile<int>("arbol_binario_balanceado");
+  ExtendibleHashFile<int>* eh= new ExtendibleHashFile<int>("tabla_hash_extensible");
   ifstream file(filename);
   string line;
   if (!file.is_open()) {
@@ -168,10 +168,10 @@ void leerCSV_ExtHash(string filename){
     }else{
       strncpy(record.estudio, "", sizeof(record.estudio));
     }
-    avl->insertar(record);
+    eh->insertar(record);
     i++;
   }
   file.close();
-  delete avl;
+  delete eh;
   return;
 }
