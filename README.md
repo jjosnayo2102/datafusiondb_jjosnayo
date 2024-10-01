@@ -1,6 +1,6 @@
 # datafusiondb_jjosnayo
 
-## Para ejecutar el programa solo compila el main.cpp: g++ main.cpp, .\a.exe
+## Para ejecutar el programa ejecuta .\datafusion.exe
 
 El repositorio está compuesto por los siguientes archivos:
 
