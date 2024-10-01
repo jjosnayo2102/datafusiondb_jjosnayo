@@ -86,7 +86,7 @@ public:
             }
             bloque.records[bloque.size] = record;
             bloque.size += 1;
-            file.seekg(index*sizeof(Bucket), ios::beg);
+            file.seekg(indice[index]*sizeof(Bucket), ios::beg);
             file.write((char*) &bloque, sizeof(Bucket));
             file.close();
             return true;
@@ -126,40 +126,86 @@ public:
             // leer el archivo de posiciones libres hasta encontrar la primera posición que no sea -1
             // luego meter -1 a esa posición
         }else{
-            //partir bucket y reinsertar los elementos incluyendo el nuevo registro, modificar índice
-            int nd = bloque.d + 1;
-            Bucket b1(nd);
-            Bucket b2(nd);
-            int nind = -1; // entrada del nuevo bucket
             if(bloque.d == P){
                 // duplicar índice
                 for(int i = N; i < 2*N; i++){ // los nuevos índices inicialmente apuntan a los mismos buckets
-                indice[i] = i-N;
+                    indice[i] = i-N;
                 }
-                P++; // aumentar profundidad
+                P += 1; // aumentar profundidad
                 N = 1 << P; // duplicar número de entradas
-            }
-            for(int j = 0; j < bloque.size; j++){
-                long llave = hf(bloque.records[j].id);
-                int p = 1 << nd; // aplicar el módulo con profundidad aumentada
-                int ind = labs(llave) % p;
+                Bucket b1(bloque.d + 1);
+                Bucket b2(bloque.d + 1);
+                int nind = index;
+                for(int j = 0; j < bloque.size; j++){
+                    long llave = hf(bloque.records[j].id);
+                    int ind = labs(llave) % (1 << (bloque.d+1));
+                    if(ind == index){ // pertenece a la primera mitad
+                        b1.records[b1.size] = bloque.records[j];
+                        b1.size += 1;
+                    }
+                    else{
+                        nind = ind;
+                        b2.records[b2.size] = bloque.records[j];
+                        b2.size += 1;
+                    }
+                }
+                // elemento nuevo
+                long llave = hf(record.id);
+                int ind = labs(llave) % (1 << (bloque.d+1));
                 if(ind == index){ // pertenece a la primera mitad
-                    b1.records[b1.size] = bloque.records[j];
+                    b1.records[b1.size] = record;
                     b1.size += 1;
                 }
                 else{
                     nind = ind;
-                    b2.records[b2.size] = bloque.records[j];
+                    b2.records[b2.size] = record;
                     b2.size += 1;
                 }
+                file.seekg(indice[index]*sizeof(Bucket), ios::beg); // posición del bucket
+                file.write((char*) &b1, sizeof(Bucket)); // modificar bucket
+                file.seekg(0, ios::end);
+                int ntam = file.tellg()/sizeof(Bucket);
+                file.write((char*) &b2, sizeof(Bucket)); // insertar nuevo bucket
+                indice[nind] = ntam; // una de las entradas apunta al nuevo bucket
+                return true;
+            }else{
+                Bucket b1(bloque.d + 1);
+                Bucket b2(bloque.d + 1);
+                int ind1 = index;
+                int ind2 = index;
+                for(int j = 0; j < bloque.size; j++){
+                    long llave = hf(bloque.records[j].id);
+                    int ind = labs(llave) % (1 << (bloque.d+1));
+                    if(ind < (N/2)){ // pertenece a la primera mitad
+                        ind1 = ind;
+                        b1.records[b1.size] = bloque.records[j];
+                        b1.size += 1;
+                    }
+                    else{
+                        ind2 = ind;
+                        b2.records[b2.size] = bloque.records[j];
+                        b2.size += 1;
+                    }
+                }
+                // elemento nuevo
+                long llave = hf(record.id);
+                int ind = labs(llave) % N;
+                if(ind < (N/2)){ // pertenece a la primera mitad
+                    b1.records[b1.size] = record;
+                    b1.size += 1;
+                }
+                else{
+                    b2.records[b2.size] = record;
+                    b2.size += 1;
+                }
+                file.seekg(indice[ind1]*sizeof(Bucket), ios::beg); // posición de la primera mitad
+                file.write((char*) &b1, sizeof(Bucket)); // modificar bucket
+                file.seekg(0, ios::end);
+                int ntam = file.tellg()/sizeof(Bucket);
+                file.write((char*) &b2, sizeof(Bucket)); // insertar nuevo bucket
+                indice[ind2] = ntam; // una de las entradas apunta al nuevo bucket
+                return true;
             }
-            file.seekg(indice[index]*sizeof(Bucket), ios::beg); // posición del bucket
-            file.write((char*) &b1, sizeof(Bucket)); // modificar bucket
-            file.seekg(0, ios::end);
-            int ntam = file.tellg()/sizeof(Bucket);
-            file.write((char*) &b2, sizeof(Bucket)); // insertar nuevo bucket
-            if(nind != -1) indice[nind] = ntam; // una de las entradas apunta al nuevo bucket
-            return true;
         }
     }
 
@@ -195,7 +241,8 @@ public:
     }
 
     vector<Anime> buscar_por_rango(TK key1, TK key2) override{
-        cout << "Búsqueda por rango no soportada" << endl;
+        cout << "Busqueda por rango no soportada" << endl;
+        cout << endl;
         vector<Anime> animes;
         return animes;
     }

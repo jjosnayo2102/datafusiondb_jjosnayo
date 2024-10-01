@@ -12,21 +12,21 @@ int main() {
     cout << "nombre es el nombre original del anime" << endl;
     cout << "puntaje es la nota del 1 al 10 que indica su calidad, es un int" << endl;
     cout << "genero es el tipo de trama del anime, es un string" << endl;
-    cout << "tipo es el formato del anime: serie, película, etc; es un string" << endl;
-    cout << "temporada es la fecha de estreno del anime codificado como año.estacion_del_año, es un float" << endl;
-    cout << "estado indica si el anime esta en emision, finalizado o aún no ha sido emitido, es un string" << endl;
-    cout << "estudio es la empresa que emitió el anime, es un string" << endl;
+    cout << "tipo es el formato del anime: serie, pelicula, etc; es un string" << endl;
+    cout << "temporada es la fecha de estreno del anime codificado como anho.estacion_del_anho, es un float" << endl;
+    cout << "estado indica si el anime esta en emision, finalizado o aun no ha sido emitido, es un string" << endl;
+    cout << "estudio es la empresa que emitio el anime, es un string" << endl;
     cout << "------------------------------------------------------------------" << endl;
     cout << "Ingrese 1 si desea indexar de forma secuencial" << endl;
-    cout << "Ingrese 2 si desea indexar a través de un árbol AVL" << endl;
+    cout << "Ingrese 2 si desea indexar a traves de un arbol AVL" << endl;
     cout << "Ingrese 3 si desea indexar por extendible hashing" << endl;
     int opcion;
     while(cin >> opcion){
         switch(opcion){
-        case 1: cout << "Se eligio la indexación por archivo secuencial" << endl; break;
-        case 2: cout << "Se eligio la indexación por árbol AVL" << endl; break;
-        case 3: cout << "Se eligio la indexación por extendible hashing" << endl; break;
-        default: cout << "Ingrese un número válido" << endl; continue;
+        case 1: cout << "Se eligio la indexacion por archivo secuencial" << endl; break;
+        case 2: cout << "Se eligio la indexacion por arbol AVL" << endl; break;
+        case 3: cout << "Se eligio la indexacion por extendible hashing" << endl; break;
+        default: cout << "Ingrese un número valido" << endl; continue;
         }
         break;
     }
@@ -40,13 +40,13 @@ int main() {
     getline(cin, consulta);
     DataFusion<int>* indice;
     if(opcion == 1){
-        indice = new Seqfile<int>("archivo_secuencial");
+        indice = new Seqfile<int>("prueba_secuencial");
     }
     if(opcion == 2){
         indice = new AVLFile<int>("arbol_binario_balanceado");
     }
     if(opcion == 3){
-        indice = new ExtendibleHashFile<int>("arbol_binario_balanceado");
+        indice = new ExtendibleHashFile<int>("prueba_hash_extensible");
     }
     SQLParser<int> parser_sf(indice);
     while(consulta != "termine"){

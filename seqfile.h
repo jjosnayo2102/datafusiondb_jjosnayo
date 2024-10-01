@@ -300,9 +300,16 @@ public:
           file.seekg(sizeof(Anime)*actual.next, ios::beg);
           file.read((char*) & siguiente, sizeof(siguiente));
           while(actual.next > ord_size) {
-            if(actual.id == registro.id && !actual.eliminado){ // si está eliminado se puede volver a poner en la misma posición
+            if(actual.id == registro.id && !actual.eliminado){
               file.close();
               return false;
+            }
+            // si está eliminado se puede volver a poner en la misma posición
+            if(actual.id == registro.id && actual.eliminado){
+              actual.eliminado = false;
+              file.seekg(apos*sizeof(Anime), ios::beg);
+              file.write((char*) &actual, sizeof(Anime));
+              return true;
             }
             if((actual.id < registro.id) && (registro.id < siguiente.id) && !actual.eliminado){
               file.seekg(0, ios::end);
@@ -327,6 +334,12 @@ public:
           if(actual.id == registro.id && !actual.eliminado){ // si está eliminado se puede volver a poner en la misma posición
             file.close();
             return false;
+          }
+          if(actual.id == registro.id && actual.eliminado){
+              actual.eliminado = false;
+              file.seekg(apos*sizeof(Anime), ios::beg);
+              file.write((char*) &actual, sizeof(Anime));
+              return true;
           }
           // si es menor que el primero pero es mayor que la lista de menores se pone al final de esta
           file.seekg(0, ios::end);

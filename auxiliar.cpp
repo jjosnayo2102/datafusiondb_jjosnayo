@@ -2,6 +2,14 @@
 
 void mostrar(string indice){
   ifstream file(indice, ios::binary);
+  Anime anime;
+  while(file.read((char*) &anime, sizeof(Anime))){
+    anime.show();
+  }
+}
+
+void mostrar_eh(string indice){
+  ifstream file(indice, ios::binary);
   Bucket bucket;
   while(file.read((char*) &bucket, sizeof(Bucket))){
     bucket.showData();
@@ -12,23 +20,23 @@ int main() {
     string nombreArchivo = "datos.csv";
     string indice;
     // creación de índice secuencial
-    //leerCSV_Seqfile(nombreArchivo);
+    leerCSV_Seqfile(nombreArchivo);
     // creación de índice AVL
-    //leerCSV_AVL(nombreArchivo);
+    // leerCSV_AVL(nombreArchivo);
     // creación de índice hash
-    leerCSV_ExtHash(nombreArchivo);
+    // leerCSV_ExtHash(nombreArchivo);
     
     //seqfile:
     // prueba de funciones auxiliares
     // inserción
     //leerCSV_Seqfile(nombreArchivo);
-    //indice = "archivo_secuencial.bin";
-    //mostrar(indice);
-    //cout << endl;
+    // indice = "prueba_secuencial.bin";
+    // mostrar(indice);
+    // cout << endl;
     // búsqueda
-    //auto sf1 = new Seqfile<int>("prueba_secuencial");
-    //Anime res = sf1->buscar(6682); // puede no estar, he metido random
-    //res.show();
+    // auto sf1 = new Seqfile<int>("prueba_secuencial");
+    // Anime res = sf1->buscar(6682);
+    // res.show();
     //cout << endl;
     // búsqueda por rango
     //auto rango = sf1->buscar_por_rango(18677, 38016);
@@ -38,8 +46,8 @@ int main() {
     //}
     //cout << endl;
     // eliminación
-    //sf1->remover(37393);
-    //mostrar();
+    // sf1->remover(37393);
+    // mostrar(indice);
     // delete sf1;
     // funciona
     // prueba general
@@ -67,11 +75,13 @@ int main() {
     // funciona
     
     // exthash:
-    // inserción:
-    // mostrar("tabla_hash_extensible.bin");
-    // ExtendibleHashFile<int> eh("tabla_hash_extensible");
+    // inserción: error con valores grandes
+    // indice = "tabla_hash_extensible.bin";
+    // mostrar(indice);
+    // ExtendibleHashFile<int> eh("prueba_hash_extensible");
+    // búsqueda
     // Anime ret = eh.buscar(170);
     // ret.show();
-    // error: indice apunta a bucket equivocado
+    // funciona
     return 0;
 }

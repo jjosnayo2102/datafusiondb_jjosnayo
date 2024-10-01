@@ -118,7 +118,7 @@ void leerCSV_AVL(string filename){
 }
 
 void leerCSV_ExtHash(string filename){
-  ExtendibleHashFile<int>* eh= new ExtendibleHashFile<int>("tabla_hash_extensible");
+  ExtendibleHashFile<int>* eh= new ExtendibleHashFile<int>("archivo_hash_extensible");
   ifstream file(filename);
   string line;
   if (!file.is_open()) {

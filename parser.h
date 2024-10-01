@@ -10,7 +10,6 @@ public:
     void ejecutar(const string& consulta) {
         if (consulta.find("select * from Anime ") == 0) {
             if (consulta.find("between") != string::npos) {
-                cout << "funciona" << endl;
                 procesar_range(consulta);
             }else{
                 procesar_select(consulta);
@@ -54,34 +53,63 @@ private:
     }
 
     void procesar_insert(const string& consulta) {
-        string valores_str = extraer_valor(consulta, "values(");
-        if (!valores_str.empty()) {
-            Anime anime;
-            string token;
-            istringstream iss(valores_str);
-            getline(iss, token, ',');
-            anime.id = stoi(token);
-            getline(iss, token, ',');
-            strncpy(anime.nombre, token.c_str(), sizeof(anime.nombre));
-            getline(iss, token, ',');
-            anime.puntaje = stof(token);
-            getline(iss, token, ',');
-            strncpy(anime.genero, token.c_str(), sizeof(anime.genero));
-            getline(iss, token, ',');
-            strncpy(anime.tipo, token.c_str(), sizeof(anime.tipo));
-            getline(iss, token, ',');
-            anime.temporada = stof(token);
-            getline(iss, token, ',');
-            strncpy(anime.estado, token.c_str(), sizeof(anime.estado));
-            getline(iss, token, ',');
-            strncpy(anime.estudio, token.c_str(), sizeof(anime.estudio));
-            bool check = db->insertar(anime);
-            if(check){
-                cout << "Elemento insertado" << endl;
-            }else{
-                cout << "El elemento ya existe" << endl;
+    string valores_str = extraer_valor(consulta, "values(");
+    if (!valores_str.empty()) {
+        Anime anime;
+        string token;
+        size_t pos = 0;
+        bool in_quotes = false;
+
+        // Función lambda para obtener el siguiente token, teniendo en cuenta las comillas
+        auto get_next_token = [&](char delimiter) {
+            string result;
+            while (pos < valores_str.size()) {
+                char current_char = valores_str[pos];
+                pos++;
+                if (current_char == '\"') {
+                    in_quotes = !in_quotes;  // Cambia el estado de si estamos dentro o fuera de comillas
+                } else if (current_char == delimiter && !in_quotes) {
+                    break;
+                } else {
+                    result += current_char;
+                }
             }
+            return result;
+        };
+
+        // Procesamos cada campo usando el delimitador de comas, pero considerando comillas
+        token = get_next_token(',');
+        anime.id = stoi(token);  // ID es numérico, por lo que no hay necesidad de comillas
+
+        token = get_next_token(',');
+        strncpy(anime.nombre, token.c_str(), sizeof(anime.nombre));
+
+        token = get_next_token(',');
+        anime.puntaje = stof(token);  // El puntaje es numérico
+
+        token = get_next_token(',');
+        strncpy(anime.genero, token.c_str(), sizeof(anime.genero));
+
+        token = get_next_token(',');
+        strncpy(anime.tipo, token.c_str(), sizeof(anime.tipo));
+
+        token = get_next_token(',');
+        anime.temporada = stof(token);  // La temporada es numérica
+
+        token = get_next_token(',');
+        strncpy(anime.estado, token.c_str(), sizeof(anime.estado));
+
+        token = get_next_token(',');
+        strncpy(anime.estudio, token.c_str(), sizeof(anime.estudio));
+
+        bool check = db->insertar(anime);
+        if (check) {
+            cout << "Elemento insertado" << endl;
+        } else {
+            cout << "El elemento ya existe" << endl;
         }
+        cout << endl;
+    }
     }
 
     void procesar_delete(const std::string& consulta) {
@@ -94,6 +122,7 @@ private:
             }else{
                 cout << "El elemento ya ha sido eliminado" << endl;
             }
+            cout << endl;
         }
     }
 
@@ -101,7 +130,13 @@ private:
         size_t pos = consulta.find(clave);
         if (pos != string::npos) {
             size_t start = pos + clave.length();
-            size_t end = consulta.find(';', start);
+            size_t end;
+            if (consulta.find("insert into Anime ") == 0) {
+                end = consulta.find(')', start);
+            } else {
+                // Para otras consultas, utiliza ';'
+                end = consulta.find(';', start);
+            }
             return consulta.substr(start, end - start);
         }
         return "";
