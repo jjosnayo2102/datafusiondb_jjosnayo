@@ -17,7 +17,7 @@ int main() {
     //leerCSV_AVL(nombreArchivo);
     // creación de índice hash
     leerCSV_ExtHash(nombreArchivo);
-
+    
     //seqfile:
     // prueba de funciones auxiliares
     // inserción
@@ -65,8 +65,13 @@ int main() {
     //   it.show();
     // }
     // funciona
+    
     // exthash:
     // inserción:
     // mostrar("tabla_hash_extensible.bin");
+    // ExtendibleHashFile<int> eh("tabla_hash_extensible");
+    // Anime ret = eh.buscar(170);
+    // ret.show();
+    // error: indice apunta a bucket equivocado
     return 0;
 }
